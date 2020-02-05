@@ -14,14 +14,13 @@ export class DynamodbTableStack extends Stack {
         name: 'ID',
         type: AttributeType.STRING
       },
-      billingMode: BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.DESTROY
     })
 
     const topic = new Topic(this, 'Topic');
     const snsAction = new SnsAction(topic);
 
-    const mode: string = 'PAY_PER_REQUEST'
+    const mode: string = 'PROVISIONED'
 
     switch (mode) {
       case 'AUTO_SCALING':
@@ -42,42 +41,42 @@ export class DynamodbTableStack extends Stack {
         });
         break;
       case 'PAY_PER_REQUEST':
-        const alarmProvisionedRCULow = new Alarm(this, 'ProvisionedWCUHigh', {
-          metric: DynamodbTableStack.metricProvisionedWriteCapacityUnits({
+        const pprAlarmConsumedRCUHigh = new Alarm(this, 'ConsumedRCUHigh', {
+          metric: DynamodbTableStack.metricConsumedReadCapacityUnits({
             dimensions: {
               TableName: table.tableName
             }
           }),
-          threshold: 5.0,
-          evaluationPeriods: 3,
+          threshold: 240.0,
+          evaluationPeriods: 5,
           comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
           alarmDescription: 'DO NOT EDIT OR DELETE. It\'s created by AWS CDK'
         })
-        alarmProvisionedRCULow.addAlarmAction({
+        pprAlarmConsumedRCUHigh.addAlarmAction({
           bind(scope, alarm) {
             return snsAction.bind(scope, alarm)
           }
         })
-
-        const alarmProvisionedWCULow = new Alarm(this, 'ProvisionedRCUHigh', {
-          metric: DynamodbTableStack.metricProvisionedReadCapacityUnits({
+        
+        const pprAlarmConsumedWCUHigh = new Alarm(this, 'ConsumedWCUHigh', {
+          metric: DynamodbTableStack.metricConsumedWriteCapacityUnits({
             dimensions: {
               TableName: table.tableName
             }
           }),
-          threshold: 5.0,
-          evaluationPeriods: 3,
+          threshold: 240.0,
+          evaluationPeriods: 5,
           comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
           alarmDescription: 'DO NOT EDIT OR DELETE. It\'s created by AWS CDK'
         })
-        alarmProvisionedWCULow.addAlarmAction({
+        pprAlarmConsumedWCUHigh.addAlarmAction({
           bind(scope, alarm) {
             return snsAction.bind(scope, alarm)
           }
         })
         break;
       case 'PROVISIONED':
-        const alarmConsumedRCULow = new Alarm(this, 'ConsumedRCULow', {
+        const prvAlarmConsumedRCUHigh = new Alarm(this, 'ConsumedRCUHigh', {
           metric: DynamodbTableStack.metricConsumedReadCapacityUnits({
             dimensions: {
               TableName: table.tableName
@@ -88,13 +87,13 @@ export class DynamodbTableStack extends Stack {
           comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
           alarmDescription: 'DO NOT EDIT OR DELETE. It\'s created by AWS CDK',
         })
-        alarmConsumedRCULow.addAlarmAction({
+        prvAlarmConsumedRCUHigh.addAlarmAction({
           bind(scope, alarm) {
             return snsAction.bind(scope, alarm)
           }
         })
 
-        const alarmConsumedRCUHigh = new Alarm(this, 'ConsumedRCUHigh', {
+        const prvAlarmConsumedWCUHigh = new Alarm(this, 'ConsumedWCUHigh', {
           metric: DynamodbTableStack.metricConsumedWriteCapacityUnits({
             dimensions: {
               TableName: table.tableName
@@ -105,7 +104,7 @@ export class DynamodbTableStack extends Stack {
           comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
           alarmDescription: 'DO NOT EDIT OR DELETE. It\'s created by AWS CDK'
         })
-        alarmConsumedRCUHigh.addAlarmAction({
+        prvAlarmConsumedWCUHigh.addAlarmAction({
           bind(scope, alarm) {
             return snsAction.bind(scope, alarm)
           }
@@ -122,28 +121,6 @@ export class DynamodbTableStack extends Stack {
     });
   }
 
-
-  public static metricProvisionedWriteCapacityUnits(props? : MetricOptions) {
-    return this.metricAll(
-      'ProvisionedWriteCapacityUnits', 
-      {
-        statistic: 'avg',
-        period: Duration.minutes(5),
-        ...props
-      }
-      )
-  }
-
-  public static metricProvisionedReadCapacityUnits(props? : MetricOptions) {
-    return this.metricAll(
-      'ProvisionedReadCapacityUnits', 
-      {
-        statistic: 'avg',
-        period: Duration.minutes(5),
-        ...props
-      }
-      )
-  }
   public static metricConsumedReadCapacityUnits(props? : MetricOptions) {
     return this.metricAll(
       'ConsumedReadCapacityUnits', 
